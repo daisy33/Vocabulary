@@ -4,6 +4,7 @@ WPF-App that assists in quickly producing Japanese-English vokabulary lists rela
 Dear readers of this github.com Website!
 
 Intention
+
 I am thinking of producing a WPF-App that helps the user study the Japanese language by assisting the user in his producing of individual vocabulary lists as a base for his personal studies.
 
 Source
