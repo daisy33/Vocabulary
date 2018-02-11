@@ -1,0 +1,61 @@
+﻿How to read data from an Microsoft Access Database into a C# Program
+Thanks to Dr. Christian Weninger for providing the following Code and download information!
+
+The connection String in the following code needs to be changed to the path of your actual Microsoft Access database location.
+and it depends on the drivers that are installed on your computer.
+
+On my Computer, I needed to download drivers using the following links:
+https://www.microsoft.com/en-us/download/confirmation.aspx?id=23734 
+https://download.microsoft.com/download/f/d/8/fd8c20d8-e38a-48b6-8691-542403b91da1/AccessDatabaseEngine.exe
+
+The following C# Code reads data from Microsoft Access database Datenbank1.accdb,
+opens Microsoft Windows Console terminal application
+and writes the contents of every line of column 0 and column 1 of table Tabelle1 
+on the output Window of Windows Console application.
+
+C#-Code used in a Microsoft Visual Studio 2017 Console App:
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Data.OleDb;
+
+namespace AccessTest
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            OleDbCommand cmd;
+            OleDbDataReader RS;
+            //Please correct the value of the string connectionstring by entering the path to your actual Microsoft Access database"
+            string connectionstring = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\Users\Admin\Desktop\Sylvia2\AccessTest\AccessTest\Datenbank1.accdb;Persist Security Info=False";
+
+            using (OleDbConnection Connection = new OleDbConnection())
+            {
+                
+                Connection.ConnectionString = connectionstring;
+                Connection.Open();
+                cmd = new OleDbCommand("SELECT * FROM Tabelle1", Connection);
+                RS = cmd.ExecuteReader();
+                while (RS.Read()) //reads every line in MS Access Table Tabelle1
+                {
+                    //Writes values of column 0 and column 1 in Tabelle1, for every line of the table
+                    Console.WriteLine("ID = " + RS[0] + ", Name = " + RS[1]);
+                }
+                /* Output:
+                 * 
+                 * ID = 1, Name = Bez1
+                   ID = 2, Name = Bez2
+                   ID = 3, Name = Bez3
+                 */
+                RS.Close();
+                Console.Read();
+            }
+        }
+    }
+}
+
+End of C# Code
