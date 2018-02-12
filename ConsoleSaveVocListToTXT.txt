@@ -1,0 +1,503 @@
+Console App
+User can enter vocabulary data into empty list.
+App saves vocabulary list into .txt file
+
+MyVocList.cs
+Program.cs
+
+***MyVocList.cs***
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+
+namespace ConsoleAppMyVocabularyToTXT
+{
+    /// <summary>
+    /// Creates a file that contains a list of rows containing that can take the users input of vocabulary data.
+    /// </summary>
+    public class MyVocFile
+    {
+        /// <summary>
+        /// Filename or path plus filename for saving file into the filesystem on the users PC
+        /// </summary>
+        public string Filename { get; set; }
+
+        /// <summary>
+        /// Object that contains a list of Rows containing vocabulary entries
+        /// </summary>
+        public MyVocList vocabularyList;
+
+        /// <summary>
+        /// Constructor for a new file that will contain the vocabulary data that the user enters.
+        /// </summary>
+        /// <param name="filename"></param>
+        public MyVocFile(string filename)
+        {
+            Filename = filename;
+            vocabularyList = new MyVocList();
+            Save();
+        }
+
+        /// <summary>
+        /// Writes the contents of the properties of the vocabulary list into a text file.
+        /// </summary>
+        public void Save()
+        {
+            SaveAs(Filename);
+        }
+
+        /// <summary>
+        /// Lets the user enter the filename of the file to be saved.
+        /// </summary>
+        /// <param name="filename">for example Ididit.txt</param>
+        public void SaveAs(string filename)
+        {
+            Filename = filename;
+            if (!Filename.Contains("."))
+            {
+                Filename = Filename + ".txt";
+            }
+
+            FileStream fs = new FileStream(Filename, FileMode.Create);
+            //overwrites existing file of this name with new one each time it is created
+            StreamWriter file = new StreamWriter(fs);
+            file.Write(WriteContent());
+            file.Close();
+            fs.Close();
+
+        }
+
+        /// <summary>
+        /// For each property in each row of the vocabulary list, this function writes the value into one line.
+        /// </summary>
+        /// <returns>String that contains some lines of vocabulary data.</returns>
+        private string WriteContent()
+        {
+            StringBuilder s = new StringBuilder();
+
+            //header
+            s.AppendLine("Attention! If you edit this file, eventually it does not produce correct data when loaded into an empty vocabulary list in the Vocabulary List Program!");
+            s.AppendLine("placeholder for info about source data, copyright constraints, author etc.");
+            s.AppendLine(Filename);
+            s.AppendLine(DateTime.Today.ToShortDateString());
+
+            //vocabulary
+            s.AppendLine("***Vocabulary List***");
+
+            for (int i = 0; i < vocabularyList.list.Count; i++)
+            {
+                s.AppendLine(vocabularyList.list[i].ContentForeignLanguage);
+                s.AppendLine(vocabularyList.list[i].ContentPronounciation);
+                s.AppendLine(vocabularyList.list[i].ContentMotherLanguage);
+                s.AppendLine("");
+            }
+            return s.ToString();
+        }
+
+        /// <summary>
+        /// Load content from a previously made vocabulary sheet into the rows of a new empty vocabulary sheet and creates rows when necessary.
+        /// </summary>
+        /// <param name="filename">the filename or path and filename of the file that holds the content that you want to load into your vocabulary list.</param>
+        public static void LoadContent(string cakefilename, MyVocFile platefile)
+        {
+            int linecount = 0;//corresponds to the index of the row in the rowlist in which the Content is loaded
+            //find first empty row
+            bool b = platefile.vocabularyList.IsLastRowEmpty();
+            if (!b)
+            {
+                platefile.vocabularyList.AddRow();
+            }
+            linecount = platefile.vocabularyList.list.Count - 1;
+
+            FileStream fs = new FileStream(cakefilename, FileMode.Open);
+
+            StreamReader file = new StreamReader(fs);
+
+            string s;
+            bool hasEnteredVocabularyRegion = false; //true when the first lines of information text in the file have been skipped.
+
+            string readerrowcount = "1"; //corresponds to the property 1 foreign language, 2 pronounciation, 3 mother language, 4 empty line in former output-textfile that we are now reading in
+            while (!file.EndOfStream)
+            {
+
+                s = file.ReadLine();
+
+                if (hasEnteredVocabularyRegion)
+                {
+
+                    switch (readerrowcount)
+                    {
+                        case "1":
+                            platefile.vocabularyList.list[linecount].ContentForeignLanguage = s;
+                            readerrowcount = "2";
+                            break;
+                        case "2":
+                            platefile.vocabularyList.list[linecount].ContentPronounciation = s;
+                            readerrowcount = "3";
+                            break;
+                        case "3":
+                            platefile.vocabularyList.list[linecount].ContentMotherLanguage = s;
+                            readerrowcount = "4";
+                            break;
+                        case "4":
+                            //here is an empty line in the sourcefile that is being read
+                            //one row has been completed, please make new row
+
+                            platefile.vocabularyList.AddRow();
+                            linecount++;
+                            readerrowcount = "1";
+                            break;
+                    }
+                }
+                //skip writing the first lines of the file
+                if (s == "***Vocabulary List***")
+                {
+                    hasEnteredVocabularyRegion = true;
+                }
+            }
+            file.Close();
+            fs.Close();
+            platefile.Save();
+            //delete last empty row
+            platefile.vocabularyList.DeleteRow(platefile.vocabularyList.list.Count - 1);
+            platefile.Save();
+        }
+
+        /// <summary>
+        /// Returns a string of lines containing the vocabulary data of the vocabulary list.
+        /// </summary>
+        /// <returns>a string consisting of multiple lines of vocabulary data</returns>
+        public static string DisplayContent(MyVocFile platefile)
+        {
+            StringBuilder xenia = new StringBuilder();
+            foreach (MyVocRow item in platefile.vocabularyList.list)
+            {
+                xenia.AppendLine(item.ContentForeignLanguage.ToString());
+                xenia.AppendLine(item.ContentPronounciation.ToString());
+                xenia.AppendLine(item.ContentMotherLanguage.ToString());
+                xenia.AppendLine("");
+            }
+            return xenia.ToString();
+        }
+
+    } //End class MyVocFile
+
+    /// <summary>
+    /// Creates an object that holds a list of rows that can store vocabulary data entered by the user
+    /// </summary>
+    public class MyVocList
+    {
+        /// <summary>
+        /// The counter gets incremented by the constructor of a new row of the vocabulary list.
+        /// </summary>
+        private static int COUNTER_NEW_ROW_IDs = 1;
+        /// <summary>
+        /// Counter for MyVocRow entries, initial value: 1
+        /// </summary>
+        public static int CounterNewRowIDs { get { return COUNTER_NEW_ROW_IDs; } set { COUNTER_NEW_ROW_IDs = value; } }
+
+        /// <summary>
+        /// List of rows that can store vocabulary data
+        /// </summary>
+        public List<MyVocRow> list;
+
+        /// <summary>
+        /// Constructor of the MyVocList object that will hold a list of rows for vocabulary data.
+        /// </summary>
+        public MyVocList()
+        {
+            list = new List<MyVocRow>();
+            AddRow();
+        }
+
+        /// <summary>
+        /// Number of existing Rows in the users vocabulary list.
+        /// </summary>
+        public int CountExistingRows { get { return list.Count; } }
+
+        /// <summary>
+        /// RowIDNumber of selected MyVocRow object on which operations are in progress.
+        /// </summary>
+        public int ActiveRow = 0; //RowIDNumber of selected Row
+
+        /// <summary>
+        /// Is last row of list empty?
+        /// </summary>
+        /// <returns>true if empty</returns>
+        public bool IsLastRowEmpty()
+        {
+            bool a = (list.ElementAt(list.Count - 1).ContentForeignLanguage == "");
+            bool b = (list.ElementAt(list.Count - 1).ContentPronounciation == "");
+            bool c = (list.ElementAt(list.Count - 1).ContentMotherLanguage == "");
+
+            if (a && b && c)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Adds new row to vocabulary list and assigns its RowIdNumber to the ActiveRow
+        /// </summary>
+        public void AddRow()
+        {
+            MyVocRow r = new MyVocRow();
+            list.Add(r);
+            ActiveRow = r.RowIDNumber;//a newly added row automatically gets the ActiveRow
+        }
+
+        /// <summary>
+        /// Deletes MyVocRow object on the input's indexposition (starting with 0);
+        /// </summary>
+        /// <param name="positionInListStarting0">position of row in vocabulary list, starting with 0</param>
+        /// <returns></returns>
+        public string DeleteRow(int positionInListStarting0)
+        {
+            string deleterowmessage;
+            if (positionInListStarting0 < list.Count)
+            {
+                list.RemoveAt(positionInListStarting0);
+                deleterowmessage = @"Row on index {positionInListStarting0} was deleted!";
+            }
+            else
+            {
+                deleterowmessage = @"Error: Cannot delete row on index {positionInListStarting0}; row does not exist!";
+            }
+            return deleterowmessage;
+        }
+    }
+
+    /// <summary>
+    /// The properties of the MyVocRow object hold the vocabulary data. The MyVocList list contains MyVocRow objects.
+    /// </summary>
+    public class MyVocRow
+    {
+        /// <summary>
+        /// Unique Row ID - set by the MyVocRow constructor.
+        /// </summary>
+        public int RowIDNumber { get; }
+
+        /// <summary>
+        /// This property is meant to store a string in foreign language.
+        /// </summary>
+        public string ContentForeignLanguage { get; set; }
+
+        /// <summary>
+        /// Property for pronounciation transcript.
+        /// </summary>
+        public string ContentPronounciation { get; set; }
+
+        /// <summary>
+        /// Property for a string in the users mother language.
+        /// </summary>
+        public string ContentMotherLanguage { get; set; }
+
+        /// <summary>
+        /// Constructor for a new row of vocabulary data.
+        /// </summary>
+        public MyVocRow()
+        {
+            RowIDNumber = MyVocList.CounterNewRowIDs;
+            MyVocList.CounterNewRowIDs++;
+            ContentForeignLanguage = "";
+            ContentPronounciation = "";
+            ContentMotherLanguage = "";
+        }
+
+        /// <summary>
+        /// Changes the content in selected property of vocabulary sheet. Replaces any other content that has been contained in this field before.
+        /// </summary>
+        /// <param name="column">"1" foreign language, "2" pronounciation, or "3" mother language</param>
+        /// <param name="content">Text that should be written into the vocabulary sheet.</param>
+        public void EditRow(string column, string content)
+        {
+            try
+            {
+                switch (column)
+                {
+                    case "1":
+                        ContentForeignLanguage = content;
+                        break;
+                    case "2":
+                        ContentPronounciation = content;
+                        break;
+                    case "3":
+                        ContentMotherLanguage = content;
+                        break;
+                }
+
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Error: No valid column string was selected. String 'column' must be of value '1', '2' or '3'.");
+                throw;
+            }
+        }
+    }
+}
+
+
+***Program.cs***
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+
+namespace ConsoleAppMyVocabularyToTXT
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            /*
+             This Program produces an empty vocabulary list with 3 properties.
+             The user can enter data into the vocabulary list
+             and save it as txt-File.
+             */
+
+            //Create new vocabulary list and save it into the users Filesystem.
+            //The file can be found where the .exe file is stored (/bin/Debug)
+            Console.WriteLine("Please enter the filename of the new file!");
+            string s = Console.ReadLine();
+            MyVocFile vocFile = new MyVocFile(s);
+
+            Console.WriteLine("You ordered a new empty list file.");
+            //Show content of the vocabulary list
+            Console.WriteLine("Display vocFile content: ");
+            string a = MyVocFile.DisplayContent(vocFile);
+            Console.WriteLine(a);
+
+            //Add two rows
+            EnterNewDataDialog(vocFile);
+
+            //is last row emty?
+            Console.WriteLine("Is the last line empty?");
+            bool b = vocFile.vocabularyList.IsLastRowEmpty();
+            Console.WriteLine(b.ToString());
+
+            //Load previously produced vocabularyfile data
+            Console.WriteLine("Load data from .txt file");
+            LoadExistingData(vocFile);
+
+            //Show content of the vocabulary list
+            Console.WriteLine("How is the content of the vocabulary list after loading?");
+            string c = MyVocFile.DisplayContent(vocFile);
+            Console.WriteLine(c);
+
+            //Save file using another filename
+            vocFile.SaveAs("cat7.txt");
+
+            //Delete first line of file cat7.txt
+            DeleteRow(vocFile);
+
+            //Show content of the vocabulary list
+            Console.WriteLine("How is the content of the vocabulary list after having deleted first line?");
+            string f = MyVocFile.DisplayContent(vocFile);
+            Console.WriteLine(f);
+
+            Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Use this Method to enter new data into an empty vocabulary sheet.
+        /// </summary>
+        /// <param name="vocFile"></param>
+        static void EnterNewDataDialog(MyVocFile vocFile)
+        {
+            AskForRowContent(vocFile);
+            AsksForAnotherLine(vocFile);
+        }
+
+        static void AskForRowContent(MyVocFile vocFile)
+        {
+            string col;
+            string content;
+
+            do
+            {
+                Console.WriteLine("In wich field do you want to enter content?");
+                Console.WriteLine("1? Content in foreign language");
+                Console.WriteLine("2? Pronounciation");
+                Console.WriteLine("3? Content in mother language");
+                Console.WriteLine("0? Exit this row of vocabulary data.");
+
+                col = Console.ReadLine();
+
+                if (col.Equals("1") || col.Equals("2") || col.Equals("3"))
+                {
+                    Console.WriteLine("Which content do you want to enter?");
+
+                    content = Console.ReadLine();
+
+                    //enter content in selected column in selected row.
+                    vocFile.vocabularyList.list.ElementAt(vocFile.vocabularyList.ActiveRow - 1).EditRow(col, content);
+
+                }
+
+            } while (col != "0");
+
+            vocFile.Save();
+        }
+
+        static void AsksForAnotherLine(MyVocFile vocFile)
+        {
+            string answer;
+            do
+            {
+                Console.WriteLine("Do you want to add another row? - y for yes, other for no");
+                answer = Console.ReadLine();
+                if (answer == "y")
+                {
+                    vocFile.vocabularyList.AddRow();
+                    vocFile.Save();
+                    AskForRowContent(vocFile);
+                }
+            } while (answer == "y");
+        }
+
+        /// <summary>
+        /// Load data from a previously generated textfile and display the content.
+        /// </summary>
+        /// <param name="vocFile"></param>
+        static void LoadExistingData(MyVocFile vocFile)
+        {
+            Console.WriteLine("Which file do you want to load?");
+            string loadstring = Console.ReadLine();
+
+            try
+            {
+                MyVocFile.LoadContent(loadstring, vocFile);
+                vocFile.Save();
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Error: File was not found.");
+                throw;
+            }
+            string x = MyVocFile.DisplayContent(vocFile);
+            Console.WriteLine(x);
+        }
+
+        /// <summary>
+        /// Delete row and write result message.
+        /// </summary>
+        /// <param name="vocFile"></param>
+        static void DeleteRow(MyVocFile vocFile)
+        {
+            string d = vocFile.vocabularyList.DeleteRow(0);
+            vocFile.Save();
+            Console.WriteLine(d);
+        }
+    }
+}
