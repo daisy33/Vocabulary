@@ -1,14 +1,14 @@
 C# Vocabulary WPF-App that assists in quickly producing Japanese-English vocabulary lists related to specific texts
 
-Dear readers of this github.com Website!
+Dear readers of this github.com website!
 
 Intention
 
-I am thinking of producing a WPF-App that helps the user study the Japanese language by assisting the user in his producing of individual vocabulary lists as a base for his personal studies.
+I am thinking of producing a WPF-App that helps the user study the Japanese language by assisting the user in his production of individual vocabulary lists as a base for the user's personal studies.
 
 Source
 
-The wonderful Japanese-English dictionary that would be used for the new App had been produced in a collaborative effort of some great people, long before I got to know the intensely useful Website that I was using for learning Japanese. 
+The wonderful Japanese-English dictionary that would be used for the new app had been produced in a collaborative effort of some great people, long before I got to know the intensely useful website that was helping me learning Japanese. 
 
 Enquiries can be made with: 
 The Electronic Dictionary Research and Development Group 
@@ -18,7 +18,7 @@ Monash University
 CLAYTON VIC 3168 
 AUSTRALIA 
 (jimbreen@gmail.com) 
-The link to the Website is http://wwwjdic.org/. Every WWW-Site, Software, Dictionary or Vocabulary List that uses the database must contain an easy-to-spot Acknowledgement like the following: 
+The link to the Website is http://wwwjdic.org/. Every WWW-site, software, dictionary or vocabulary list that uses the database must contain an easy-to-spot Acknowledgement like the following: 
 
 “Sample Acknowledgement for a WWW Site
 This site uses the EDICT and KANJIDIC dictionary files. These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group's licence. 
@@ -29,7 +29,7 @@ This publication has included material from the JMdict (EDICT, etc.) dictionary 
 (Any reasonable variant of the above is suitable.) “
 (Source http://www.edrdg.org/edrdg/sample.html) 
 
-My Development Environment
+My development environment
 
 The production of the WPF-App will be realized as part of the final project of a C# software developer course at WIFI WIEN institute in Vienna. The WIFI WIEN institute holds qualification courses for adults who want to increase their professional skills. I am expressing my acknowledgement to the contributions of our instructors, Mr. Christopher Benge, Mr. Florian Pöhr and Mrs. Michaela Pum, in alphabetical order. The website of the institute can be found at http://www.wifiwien.at. I am also grateful to my husband, Mr. Dr. Christian Weninger, for his assistance in solving Computer programming problems.
 
