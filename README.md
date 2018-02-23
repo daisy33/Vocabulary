@@ -1,5 +1,4 @@
-c# Vocabulary
-WPF-App that assists in quickly producing Japanese-English vocabulary lists related to specific texts
+C# Vocabulary WPF-App that assists in quickly producing Japanese-English vocabulary lists related to specific texts
 
 Dear readers of this github.com Website!
 
