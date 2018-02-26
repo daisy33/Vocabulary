@@ -18,16 +18,7 @@ Monash University
 CLAYTON VIC 3168 
 AUSTRALIA 
 (jimbreen@gmail.com) 
-The link to the Website is http://wwwjdic.org/. Every WWW-site, software, dictionary or vocabulary list that uses the database must contain an easy-to-spot Acknowledgement like the following: 
-
-“Sample Acknowledgement for a WWW Site
-This site uses the EDICT and KANJIDIC dictionary files. These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group's licence. 
-Sample Acknowledgement for a Software Package
-This package uses the EDICT and KANJIDIC dictionary files. These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group's licence. 
-Sample Acknowledgement for a Dictionary/Vocabulary List
-This publication has included material from the JMdict (EDICT, etc.) dictionary files in accordance with the licence provisions of the Electronic Dictionaries Research Group. See http://www.csse.monash.edu.au/~jwb/edict.html and http://www.edrdg.org/ 
-(Any reasonable variant of the above is suitable.) “
-(Source http://www.edrdg.org/edrdg/sample.html) 
+The link to the Website is http://www.edrdg.org/. Every WWW-site, software, dictionary or vocabulary list that uses the database must contain an easy-to-spot Acknowledgement. (Sample Acknowledgement: http://www.edrdg.org/edrdg/sample.html) 
 
 My development environment
 
@@ -35,7 +26,7 @@ The production of the WPF-App will be realized as part of the final project of a
 
 About me
 
-I am living in Vienna, Austria, and I am learning Japanese as a hobby. The http://wwwjdic.org/ website has been of immense help for me. I hope that it will be maintained for a long time. Sometimes I missed using the website when there was no internet-connection. To help using the vocabulary-database when there is no internet-connection, I am intending to build a WPF-App. 
+I am living in Vienna, Austria, and I am learning Japanese as a hobby. The website http://nihongo.monash.edu/cgi-bin/wwwjdic?1C has been of immense help for me. I hope that it will be maintained for a long time. Sometimes I missed using the website when there was no internet-connection. To help using the vocabulary-database when there is no internet-connection, I am intending to build a WPF-App. 
 
 Description of the planned WPF-App
 
