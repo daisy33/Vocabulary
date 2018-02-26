@@ -1,0 +1,144 @@
+The following code for an WPF App downloads the copyright protected file JMdict_e.gz and decompresses it into JMdict_e.txt.
+Copyright: www.edrdg.org
+
+The folowing code lists
+JMdictDownload.cs,
+MainWindow.xaml.cs,
+MainWindow.xaml
+
+******************JMdictDownload.cs******************
+using System.Text;
+// using System.Threading.Tasks;
+using System.Net;
+using System.Windows;
+using System.IO;
+using System.IO.Compression;
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Download and decompress JMdict_e.gz dictionary file
+    /// The file is the property of the Electronic Dictionary Research and Development Group (www.edrdg.org)
+    /// and has to be used in conformance with the Group's licence.
+    /// Download statement, e.g. in MainWindow.xaml.cs: JMdictDownload.DownloadAndDecompressJMdictDictionaryFile();
+    /// </summary>
+    class JMdictDownload
+    {
+        private static string compressedDownloadFile = "JMdict_e.gz";
+        private static string decompressedDownloadFile = "JMdict_e.txt";
+        private static string licenceURI = @"http://www.edrdg.org";
+        private static string fileDownloadURI = @"http://ftp.monash.edu/pub/nihongo/"; //for downloading, string compressedDownloadFile needs to be added
+        public static int bufferSize = 70000; //needs to be larger than the size of the decompressedDownloadFile. The file grows as new entries are added and its size is now (Feb 2018) about 50MB.
+
+        /// <summary>
+        /// Loads a zipped version of JMdict_e Japanese English dictionary file into the same directory as the .exe file of this application.
+        /// Needs internet access. File size of the compressed file is about 8 MB (Feb 2018). It is growing when new entries are added to the source file by the producers. 
+        /// </summary>
+        public static void DownloadAndDecompressJMdictDictionaryFile()
+        {
+            MessageBox.Show("The download file is copyright protected: " + licenceURI);
+            DownloadFile(fileDownloadURI, compressedDownloadFile);
+            DecompressGZFile();
+        }
+
+
+        /// <summary>
+        /// Downloads file using internet connection and saves it into the same directory where the .exe file of this program is stored.
+        /// </summary>
+        /// <param name="remoteUriWithoutFileName">string; URI without the last part for the file name (e.g. "http://ftp..../")</param>
+        /// <param name="fileName">string; file name of the downloaded file, e.g. "JMdict_e.gz"</param>
+        private static void DownloadFile(string remoteUriWithoutFileName, string fileName)
+        {
+            //msdn.microsoft.com/de-de/library/ez801hhe(v=vs.110).aspx
+            string myStringWebResource = null;
+
+            //Create a new webClient instance.
+            WebClient myWebClient = new WebClient();
+
+            StringBuilder s = new StringBuilder();
+
+            s.Append(remoteUriWithoutFileName);
+            s.Append(fileName);
+            myStringWebResource = s.ToString();
+
+            MessageBox.Show("Size of download file about 10 MB (This may take several minutes). Downloading: " + myStringWebResource);
+
+            //Download the web resource and save it into the current filesystem folder.
+            myWebClient.DownloadFile(myStringWebResource, fileName);
+            MessageBox.Show("Download has finished. ");//File saved into the same directory as: Application.ResourceAssembly.Location
+        }
+
+        //For the implementation of Async Download:
+        //Reference: msdn.microsoft.com/de-de/library/system.net.webclient.downloadfileasync(v=vs.110).aspx
+
+
+        /// <summary>
+        /// Decompresses the downloaded JMdict_e.gz file.
+        /// </summary>
+        private static void DecompressGZFile()
+        {
+
+            //Reference: msdn.microsoft.com/en-us/library/system.io.compression.gzipstream.aspx
+
+            FileInfo fi = new FileInfo(compressedDownloadFile);
+
+            using (FileStream compressedFileStream = fi.OpenRead())
+            {
+                string currentFileName = fi.FullName;
+                string newFileName = decompressedDownloadFile;
+
+                using (FileStream decompressedFileStream = File.Create(newFileName))
+                {
+                    using (GZipStream decompressionStream = new GZipStream(compressedFileStream, CompressionMode.Decompress))
+                    {
+                        decompressionStream.CopyTo(decompressedFileStream);
+                        MessageBox.Show("Decompression has finished.");
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+******************End JMdictDownload.cs******************
+
+******************MainWindow.xaml.cs******************
+
+using System.Windows;
+
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Interaktionslogik für MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        public MainWindow()
+        {
+            InitializeComponent();
+            JMdictDownload.DownloadAndDecompressJMdictDictionaryFile();
+        }
+    }
+}
+
+******************End MainWindow.xaml.cs******************
+
+******************MainWindow.xaml******************
+<Window x:Class="WpfAppJMdictDownload.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfAppJMdictDownload"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <TextBox Margin="30" TextWrapping="Wrap">
+            The file is a property of the Electronic Dictionary Research and Development Group (www.edrdg.org) and has to be used in conformance with the Group's licence.
+        </TextBox>
+    </Grid>
+</Window>
+
+******************End MainWindow.xaml******************
