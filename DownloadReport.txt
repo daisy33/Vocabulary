@@ -1,0 +1,462 @@
+*************JMdictDownload.cs***************************
+using System.Text;
+// using System.Threading.Tasks;
+using System.Net;
+using System.Windows;
+using System.IO;
+using System.IO.Compression;
+using System;
+using System.Collections.Generic;
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Download and decompress JMdict_e.gz dictionary file
+    /// The file is the property of the Electronic Dictionary Research and Development Group (www.edrdg.org)
+    /// and has to be used in conformance with the Group's licence.
+    /// Download statement, e.g. in MainWindow.xaml.cs: JMdictDownload.DownloadAndDecompressJMdictDictionaryFile();
+    /// </summary>
+    class JMdictDownload
+    {
+        public static string compressedDownloadFile = "JMdict_e.gz";
+        public static string decompressedDownloadFile = "JMdict_e.txt";
+        public static string licenceURI = @"http://www.edrdg.org";
+        public static string fileDownloadURI = @"http://ftp.monash.edu/pub/nihongo/"; //for downloading, string compressedDownloadFile needs to be added
+        public static int bufferSize = 70000; //needs to be larger than the size of the decompressedDownloadFile. The file grows as new entries are added and its size is now (Feb 2018) about 50MB.
+                     private static bool downloadFinished = true; //SET TO TRUE ONLY FOR TESTING
+                     private static bool decompressFinished = true; //SET TO TRUE ONLY FOR TESTING
+        private static DateTime dateOfDownload = new DateTime();
+        public static string downloadReport = "";
+        public static int numberOfLines; //for storing result of NumberOfLines()
+        public static int int_numberOfEnt_seqIDs;
+        public static string firstLineContent;
+        public static string lastLineContent;
+        public static string jmdictCreated;
+        public static string firstEnt_seqID;
+        public static string lastEnt_seqID;
+        public static int amountOfKebs;
+        public static int amountOfKebFirstLetters;
+        public static int amountOfKebFirstTwoLetterCombinations;
+        public static List<string> listOfKebsInclTags;
+        public static List<string> kebFirstLetters = new List<string>();
+        public static List<string> kebFirstTwoLetters = new List<string>();
+
+
+        /// <summary>
+        /// Loads a zipped version of JMdict_e Japanese English dictionary file into the same directory as the .exe file of this application.
+        /// Needs internet access. File size of the compressed file is about 8 MB (Feb 2018). It is growing when new entries are added to the source file by the producers. 
+        /// </summary>
+        public static void DownloadAndDecompressJMdictDictionaryFile()
+        {
+            MessageBox.Show("The download file is copyright protected: " + licenceURI);
+            DownloadFile(fileDownloadURI, compressedDownloadFile);
+            DecompressGZFile();
+            downloadReport = DownloadReport();
+        }
+
+
+        /// <summary>
+        /// Downloads file using internet connection and saves it into the same directory where the .exe file of this program is stored.
+        /// </summary>
+        /// <param name="remoteUriWithoutFileName">string; URI without the last part for the file name (e.g. "http://ftp..../")</param>
+        /// <param name="fileName">string; file name of the downloaded file, e.g. "JMdict_e.gz"</param>
+        private static void DownloadFile(string remoteUriWithoutFileName, string fileName)
+        {
+            //msdn.microsoft.com/de-de/library/ez801hhe(v=vs.110).aspx
+            string myStringWebResource = null;
+
+            //Create a new webClient instance.
+            WebClient myWebClient = new WebClient();
+
+            StringBuilder s = new StringBuilder();
+
+            s.Append(remoteUriWithoutFileName);
+            s.Append(fileName);
+            myStringWebResource = s.ToString();
+
+            MessageBox.Show("Size of download file about 10 MB (This may take several minutes). Downloading: " + myStringWebResource);
+
+            //Download the web resource and save it into the current filesystem folder.
+            myWebClient.DownloadFile(myStringWebResource, fileName);
+            MessageBox.Show("Download has finished. ");//File saved into the same directory as: Application.ResourceAssembly.Location
+            dateOfDownload = DateTime.Now.ToUniversalTime();
+            downloadFinished = true;
+        }
+
+        //For the implementation of Async Download:
+        //Reference: msdn.microsoft.com/de-de/library/system.net.webclient.downloadfileasync(v=vs.110).aspx
+
+
+        /// <summary>
+        /// Decompresses the downloaded JMdict_e.gz file.
+        /// </summary>
+        private static void DecompressGZFile()
+        {
+
+            //Reference: msdn.microsoft.com/en-us/library/system.io.compression.gzipstream.aspx
+
+            FileInfo fi = new FileInfo(compressedDownloadFile);
+
+            using (FileStream compressedFileStream = fi.OpenRead())
+            {
+                string currentFileName = fi.FullName;
+                string newFileName = decompressedDownloadFile;
+
+                using (FileStream decompressedFileStream = File.Create(newFileName))
+                {
+                    using (GZipStream decompressionStream = new GZipStream(compressedFileStream, CompressionMode.Decompress))
+                    {
+                        decompressionStream.CopyTo(decompressedFileStream);
+                        MessageBox.Show("Decompression has finished.");
+                        decompressFinished = true;
+                    }
+                }
+            }
+        }
+
+        
+        /// <summary>
+        /// Can be started after downloading and decompressing for displaying download information
+        /// </summary>
+        /// <returns></returns>
+        public static string DownloadReport()
+        {
+            StringBuilder s = new StringBuilder();
+            if (downloadFinished)
+            {
+                s.AppendLine("");
+                s.AppendLine("***Download Report***");
+                s.AppendLine("Licence information: " + licenceURI);
+                s.AppendLine("Date of download (universal time): " + dateOfDownload);
+                s.AppendLine("Requested download URI: " + fileDownloadURI);
+                s.AppendLine("Name of download file: " + compressedDownloadFile);
+                s.AppendLine("IP Adress of recipient: " + Dns.GetHostName().ToString());
+                FileInfo compressedFileInfo = new FileInfo(compressedDownloadFile);
+                s.AppendLine("Name and size of saved compressed file: " + compressedFileInfo.FullName + ", " + compressedFileInfo.Length);
+            }
+            if (decompressFinished)
+            {
+                s.AppendLine("Name of decompressed file: " + decompressedDownloadFile);
+                FileInfo decompressedFileInfo = new FileInfo(decompressedDownloadFile);
+                s.AppendLine("Name and size of decompressed file: " + decompressedFileInfo.FullName + ", " + decompressedFileInfo.Length.ToString());
+            }
+            
+            return s.ToString();
+        }
+
+        public static string FileContentEnt_seqKebStatistics()
+        {
+             StringBuilder a = new StringBuilder();
+            a.AppendLine("");
+
+            if (downloadFinished && decompressFinished)
+            {
+                numberOfLines = NumberOfLines();
+
+                a.AppendLine("***JMdict_e.txt file ent_seq and keb statistic***");
+                SpecifiedLinesContent();
+                a.AppendLine("Date of last change: " + jmdictCreated);
+                a.AppendLine("Content of first line: " + firstLineContent);
+                a.AppendLine("Content of last line: " + lastLineContent);
+                a.AppendLine("Number of lines: " + numberOfLines);
+                a.AppendLine("");
+                NumberOfEnt_seq();
+                a.AppendLine("Amount of ent_seq entries: " + int_numberOfEnt_seqIDs);
+                ContentFirstLastEnt_seq();
+                a.AppendLine("First ent_seq number: " + firstEnt_seqID);
+                a.AppendLine("Last ent_seq number: " + lastEnt_seqID);
+                listOfKebsInclTags = ListOfKebs();
+                a.AppendLine("Amount of keb keywords in Chinese letters: " + amountOfKebs);
+                kebFirstLetters = ListOfKebFirstLetters();
+                a.AppendLine("Amount of different first letters in keb keyword entries: " + amountOfKebFirstLetters);
+                kebFirstTwoLetters = ListOfKebFirstTwoLetters();
+                a.AppendLine("Amount of different first and second letter combinations in keb keyword entries: " + amountOfKebFirstTwoLetterCombinations);
+                
+            }
+            
+            return a.ToString();
+        }
+
+
+        public static int NumberOfLines()
+        {
+            int lines= 0;
+            StreamReader sr = new StreamReader(decompressedDownloadFile);
+            while (!sr.EndOfStream)
+            {
+                sr.ReadLine();
+                lines++;
+            }
+                       
+            sr.Close();
+            numberOfLines = lines;
+            return lines;
+        }
+
+        public static void SpecifiedLinesContent()
+        {
+            int lines = 0;
+            string currentLine;
+            StreamReader sr = new StreamReader(decompressedDownloadFile);
+            while (!sr.EndOfStream)
+            {
+                lines++;
+                currentLine = sr.ReadLine();
+                if (lines == 1)
+                {
+                    firstLineContent = currentLine;
+                }
+                if (lines == numberOfLines)
+                {
+                    //if (currentLine.Trim() != "")
+                        lastLineContent = currentLine;
+                }
+                if (currentLine.Contains("JMdict created:"))
+                {
+                    jmdictCreated = currentLine;
+                }
+
+
+            }
+        }
+
+        public static int NumberOfEnt_seq()
+        {
+            bool contentarea = false;
+            int entries = 0;
+            string currentLine;
+            StreamReader cornelia = new StreamReader(decompressedDownloadFile);
+            while (!cornelia.EndOfStream)
+            {
+                currentLine = cornelia.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+
+                if ((contentarea == true) && (currentLine.Contains("ent_seq")))
+                {
+                    entries++;
+                }
+            }
+
+            cornelia.Close();
+            int_numberOfEnt_seqIDs = entries;
+            return entries;
+        }
+
+        public static void ContentFirstLastEnt_seq()
+        {
+            bool contentarea = false;
+            int ent_seqs = 0;
+            string currentLine;
+            StreamReader kunibert = new StreamReader(decompressedDownloadFile);
+            while (!kunibert.EndOfStream)
+            {
+                currentLine = kunibert.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+                if ((contentarea == true) && (currentLine.Contains("ent_seq")))
+                {
+                    ent_seqs++;
+                    if (ent_seqs == 1)
+                    {
+                        firstEnt_seqID = currentLine;
+                    }
+                    
+                    if (ent_seqs == int_numberOfEnt_seqIDs)
+                    {
+                        
+                        lastEnt_seqID = currentLine;
+                    }
+                    
+                }
+            }
+        }
+
+        public static List<string> ListOfKebs()
+        {
+            List<string> list = new List<string>();
+            bool contentarea = false;
+            
+            string currentLine;
+            string s = "";
+            StreamReader kunibert = new StreamReader(decompressedDownloadFile);
+            while (!kunibert.EndOfStream)
+            {
+                currentLine = kunibert.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+                if ((contentarea == true) && (currentLine.Contains("<keb>")))
+                {
+                    s = currentLine;
+                    list.Add(s);
+                }
+            }
+            amountOfKebs = list.Count;
+            return list;
+        }
+
+        public static List<string> ListOfKebFirstLetters()
+        {
+            List<string> list = new List<string>();
+            bool contentarea = false;
+
+            string currentLine;
+            string line = "";
+            string currentFirstLetter = "";
+            bool containsThisKanji;
+            
+            StreamReader berta = new StreamReader(decompressedDownloadFile);
+            while (!berta.EndOfStream)
+            {
+                currentLine = berta.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+                if ((contentarea == true) && (currentLine.Contains("<keb>")))
+                {
+                    line = currentLine;
+                    
+                    line = line.Replace("<keb>", "");
+                    line = line.Replace("</keb>", "");
+                    line = line + "; ";
+
+                    currentFirstLetter = line.Substring(1, 1); //index 0 is "
+                    
+                    containsThisKanji = list.Contains(currentFirstLetter);
+                    if (containsThisKanji == false)
+                    {
+                        list.Add(currentFirstLetter);
+                    }
+                   
+                }
+            
+            }
+            amountOfKebFirstLetters = list.Count;
+            return list;
+        }
+
+        public static List<string> ListOfKebFirstTwoLetters()
+        {
+            List<string> list = new List<string>();
+            bool contentarea = false;
+
+            string currentLine;
+            string line = "";
+            string currentFirstTwoLetters = "";
+            bool containsTheseKanji;
+
+            StreamReader berta = new StreamReader(decompressedDownloadFile);
+            while (!berta.EndOfStream)
+            {
+                currentLine = berta.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+                if ((contentarea == true) && (currentLine.Contains("<keb>")))
+                {
+                    line = currentLine;
+
+                    line = line.Replace("<keb>", "");
+                    line = line.Replace("</keb>", "");
+                    line = line + "; ";
+
+                    currentFirstTwoLetters = line.Substring(1, 2); //index 0 is "
+
+                    containsTheseKanji = list.Contains(currentFirstTwoLetters);
+                    if (containsTheseKanji == false)
+                    {
+                        list.Add(currentFirstTwoLetters);
+                    }
+
+                }
+
+            }
+            amountOfKebFirstTwoLetterCombinations = list.Count;
+            return list;
+        }
+
+        
+        public static List<string> ListOfKebWithoutTags()
+        {
+            List<string> list = new List<string>();
+            bool contentarea = false;
+
+            string currentLine;
+            string line = "";
+
+            StreamReader alexa = new StreamReader(decompressedDownloadFile);
+            while (!alexa.EndOfStream)
+            {
+                currentLine = alexa.ReadLine();
+                if (currentLine.Contains("<JMdict>"))
+                {
+                    contentarea = true;
+                }
+                if ((contentarea == true) && (currentLine.Contains("<keb>")))
+                {
+                    line = currentLine;
+
+                    line = line.Replace("<keb>", "");
+                    line = line.Replace("</keb>", "");
+                    line = line + "; ";
+                    list.Add(line);
+                }
+
+            }
+            return list;
+        }
+
+        
+    }
+}
+****************MainWindow.xaml.cs***********************************************
+
+using System.Windows;
+using System.Collections.Generic;
+
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Interaktionslogik für MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        public MainWindow()
+        {
+            InitializeComponent();
+            JMdictDownload.DownloadAndDecompressJMdictDictionaryFile();
+            
+            tbx1.Text += JMdictDownload.DownloadReport();
+            tbx1.Text += JMdictDownload.FileContentEnt_seqKebStatistics();
+        }
+    }
+}
+***************MainWindow.xaml*************************************************
+<Window x:Class="WpfAppJMdictDownload.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfAppJMdictDownload"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+           
+        </Grid.RowDefinitions>
+        <TextBox Name="tbx1" Margin="30" TextWrapping="Wrap" Grid.Row="0">
+            The file is a property of the Electronic Dictionary Research and Development Group (www.edrdg.org) and has to be used in conformance with the Group's licence.
+        </TextBox>
+        
+    </Grid>
+</Window>
