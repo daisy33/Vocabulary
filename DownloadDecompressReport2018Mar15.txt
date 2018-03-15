@@ -1,0 +1,504 @@
+﻿***MainWindow.xaml
+
+<Window x:Class="WpfAppJMdictDownload.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfAppJMdictDownload"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+           
+        </Grid.RowDefinitions>
+        <TextBox Name="tbx1" Margin="30" TextWrapping="Wrap" Grid.Row="0">
+            The file is a property of the Electronic Dictionary Research and Development Group (www.edrdg.org) and has to be used in conformance with the Group's licence.
+        </TextBox>
+        
+    </Grid>
+</Window>
+
+***MainWindow.xaml.cs
+
+
+using System.Windows;
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Download JMdict_e and write file statistics into file system of your computer
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        public MainWindow()
+        {
+            InitializeComponent();
+            JMdictDownload.DownloadJMdictAndExportReportToTXT();
+        }
+    }
+}
+
+***JMdictDownload.cs
+
+using System.Text;
+using System.Net;
+using System.Windows;
+using System.IO;
+using System.IO.Compression;
+using System;
+using System.Linq;
+using System.Globalization;
+
+namespace WpfAppJMdictDownload
+{
+    /// <summary>
+    /// Download and decompress JMdict_e.gz dictionary file
+    /// The file is the property of the Electronic Dictionary Research and Development Group (www.edrdg.org)
+    /// and has to be used in conformance with the Group's licence.
+    /// Main Method: DownloadJMdictAndExportReportToTXT().
+    /// If you do not want to generate a file statistic, the method for downloading and decompressing is DownloadAndDecompressJMdictDictionaryFile().
+    /// </summary>
+    class JMdictDownload
+    {
+        //***
+        public static string REPORTFILENAME = "JMdictSt.txt";
+        public static string compressedDownloadFile = "JMdict_e.gz";
+        public static string decompressedDownloadFile = "JMdict_e.txt";
+        public static string fileownerURI = @"http://www.edrdg.org";
+        public static string fileDownloadURI = @"http://ftp.monash.edu/pub/nihongo/"; //for downloading, string compressedDownloadFile needs to be added
+        public static string licenceURI = @"https://creativecommons.org/licenses/by-sa/3.0/";
+        public static string reportAuthor = "Sylvia Weninger";
+        public static int bufferSize = 70000; //needs to be larger than the size of the decompressedDownloadFile. The file grows as new entries are added and its size is now (Feb 2018) about 50MB.
+        private static bool downloadFinished = false; 
+        private static bool decompressFinished = false; 
+
+        private static DateTime dateOfDownload = new DateTime();
+        public static string downloadReport = "";
+        public static int currentRowNumber = 0; //for storing result of NumberOfLines()
+        private static bool readerInDictionaryAerea = false;
+        public static int rowNumberJMdictStart;
+        public static string firstLineContent;
+        public static string lastLineReadContent;
+        public static string lastLineFileContent = "</JMdict>";
+
+        public static string jmdictCreated;
+        public static int amountOfEntries;
+        public static int amountOfK_ele;
+        public static int amountOfKebs;
+        public static int amountOfR_ele;
+        public static int amountOfRebs;
+        public static int amountOfRe_restr; //e.g. ent_seq 2834132
+        public static int amountOfRe_nokanji;
+        public static int amountOfSense;
+        public static int amountOfStagr; //e.g. ent_seq 1000320, 1002020
+        public static int amountOfStagk;
+        public static int amountOfGloss;
+        public static int amountOfAnt;
+        public static int amountOfPos;
+        
+        public static int lengthOflongestKeb = 0;
+        public static int lengthOflongestReb = 0;
+        public static int lengthOflongestGloss = 0;
+        public static int lengthOflongestAnt = 0;
+        public static int lengthOflongestPos = 0;
+
+        public static string ent_SeqOfLongestKeb;
+        public static string ent_SeqOfLongestReb;
+        public static string ent_SeqOfLongestGloss;
+        public static string ent_SeqOfLongestAnt;
+        public static string ent_SeqOfLongestPos;
+               
+        private static string tempWithoutTagString;
+        private static int tempCountLetters;
+        private static string tempCurrentEnt_seq;
+
+        private static string[] tagsEnt_seq = { "<ent_seq>", "</ent_seq>" };
+        private static string[] tagsKeb = { "<keb>", "</keb>" };
+        private static string[] tagsReb = { "<reb>", "</reb>" };
+        private static string[] tagsGloss = { "<gloss>", "</gloss>" };
+        private static string[] tagsAnt = { "<ant>", "</ant>" };
+        private static string[] tagsPos = { "<pos>", "</pos>" };
+
+        public static void DownloadJMdictAndExportReportToTXT()
+        {
+            DownloadAndDecompressJMdictDictionaryFile(); //Download, Decompress and write DownloadReport into public static string downloadReport; 
+            CountDetails(); //Count statistics of JMdict_e and save values into variables of this class
+            string rep = MakeDetailsReportString(); //Output string of statistics report
+            StringBuilder Washington = new StringBuilder();
+            Washington.AppendLine(downloadReport); //Append download report
+            Washington.AppendLine(rep); //Append statistics report
+            string reporttext = Washington.ToString(); //Combine the two strings into one report
+            SaveReportToFilesystem(REPORTFILENAME, reporttext); //Save report into filesystem
+        }
+
+
+        /// <summary>
+        /// Loads a zipped version of JMdict_e Japanese English dictionary file into the same directory as the .exe file of this application.
+        /// Needs internet access. File size of the compressed file is about 8 MB (Feb 2018). It is growing when new entries are added to the source file by the producers. 
+        /// </summary>
+        public static void DownloadAndDecompressJMdictDictionaryFile()
+        {
+            MessageBox.Show("The download file is copyright protected: " + fileownerURI);
+            DownloadFile(fileDownloadURI, compressedDownloadFile);
+            DecompressGZFile();
+            downloadReport = DownloadReport();            
+        }
+
+
+        /// <summary>
+        /// Downloads file using internet connection and saves it into the same directory where the .exe file of this program is stored.
+        /// </summary>
+        /// <param name="remoteUriWithoutFileName">string; URI without the last part for the file name (e.g. "http://ftp..../")</param>
+        /// <param name="fileName">string; file name of the downloaded file, e.g. "JMdict_e.gz"</param>
+        private static void DownloadFile(string remoteUriWithoutFileName, string fileName)
+        {
+            //msdn.microsoft.com/de-de/library/ez801hhe(v=vs.110).aspx
+            string myStringWebResource = null;
+
+            //Create a new webClient instance.
+            WebClient myWebClient = new WebClient();
+
+            StringBuilder s = new StringBuilder();
+
+            s.Append(remoteUriWithoutFileName);
+            s.Append(fileName);
+            myStringWebResource = s.ToString();
+
+            MessageBox.Show("Size of download file about 10 MB (This may take several minutes). Downloading: " + myStringWebResource);
+
+            //Download the web resource and save it into the current filesystem folder.
+            myWebClient.DownloadFile(myStringWebResource, fileName);
+            MessageBox.Show("Download has finished. ");//File saved into the same directory as: Application.ResourceAssembly.Location
+            dateOfDownload = DateTime.Now.ToUniversalTime();
+            downloadFinished = true;
+        }
+
+        //For the implementation of Async Download:
+        //Reference: msdn.microsoft.com/de-de/library/system.net.webclient.downloadfileasync(v=vs.110).aspx
+
+
+        /// <summary>
+        /// Decompresses the downloaded JMdict_e.gz file.
+        /// </summary>
+        private static void DecompressGZFile()
+        {
+
+            //Reference: msdn.microsoft.com/en-us/library/system.io.compression.gzipstream.aspx
+
+            FileInfo fi = new FileInfo(compressedDownloadFile);
+
+            using (FileStream compressedFileStream = fi.OpenRead())
+            {
+                string currentFileName = fi.FullName;
+                string newFileName = decompressedDownloadFile;
+
+                using (FileStream decompressedFileStream = File.Create(newFileName))
+                {
+                    using (GZipStream decompressionStream = new GZipStream(compressedFileStream, CompressionMode.Decompress))
+                    {
+                        decompressionStream.CopyTo(decompressedFileStream);
+                        MessageBox.Show("Decompression has finished.");
+                        decompressFinished = true;
+                    }
+                }
+            }
+        }
+
+        
+        /// <summary>
+        /// Can be started after downloading and decompressing for displaying download information
+        /// </summary>
+        /// <returns></returns>
+        private static string DownloadReport()
+        {
+            CultureInfo ci = new CultureInfo("de-de");
+            StringBuilder s = new StringBuilder();
+            if (downloadFinished)
+            {
+                s.AppendLine("");
+                s.AppendLine("***DOWNLOAD REPORT***");
+                s.AppendLine("Owners of the dictionary file: " + fileownerURI);
+                s.AppendLine("Licence information: " + licenceURI);
+                s.AppendLine("Date of download (universal time): " + dateOfDownload);
+                s.AppendLine("Requested download URI: " + fileDownloadURI);
+                s.AppendLine("Name of download file: " + compressedDownloadFile);
+                s.AppendLine("IP Adress of recipient: " + Dns.GetHostName().ToString());
+                FileInfo compressedFileInfo = new FileInfo(compressedDownloadFile);
+                s.AppendLine("Name and size (in bytes) of saved compressed file: " + compressedFileInfo.FullName + ", " + compressedFileInfo.Length.ToString("N00", ci));
+            }
+            if (decompressFinished)
+            {
+                FileInfo decompressedFileInfo = new FileInfo(decompressedDownloadFile);
+                s.AppendLine("Name and size (in bytes) of decompressed file: " + decompressedFileInfo.FullName + ", " + decompressedFileInfo.Length.ToString("N00", ci));
+            }
+            
+            return s.ToString();
+        }
+
+        private static bool DoesJMdictDecompressedExist()
+        {
+            return File.Exists(decompressedDownloadFile);
+        }
+
+        /// <summary>
+        /// True if reader of file has reached /JMdict
+        /// </summary>
+        private static bool JMdictReadingFinished
+        {
+            get
+            {
+                if (lastLineReadContent.Contains(lastLineFileContent))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// removes start- and end-tag of an xml tagged entry line
+        /// </summary>
+        /// <param name="startTag"></param>
+        /// <param name="endTag"></param>
+        /// <param name="containingTagString"></param>
+        /// <returns>content that is contained between opening and closing xml tag</returns>
+        private static string RemoveTag(string startTag, string endTag, string containingTagString)
+        {
+            containingTagString = containingTagString.Replace(startTag, "");
+            containingTagString = containingTagString.Replace(endTag, "");
+            return containingTagString;
+        }
+
+        /// <summary>
+        /// Counts the number of letters contained in a string
+        /// </summary>
+        /// <param name="stringWithoutTags"></param>
+        /// <returns>int number of letters</returns>
+        private static int CountLetters(string stringWithoutTags)
+        {
+            return stringWithoutTags.Count();
+        }
+
+        /// <summary>
+        /// Searches for the longest word of a kind. Overwrites static variable content with the current values if they describe the new maximum.
+        /// </summary>
+        /// <param name="maxCountVariable">stores the longest word; e.g. lengthOflongestKeb, lengthOflongestReb, lengthOflongestGloss, lengthOflongestAnt, or lengthOflongestPos</param>
+        /// <param name="maxCountTagEntryVar">stores the ent_seq of the longest word; e.g. ent_SeqOfLongestKeb, ent_SeqOfLongestReb, ent_SeqOfLongestGloss, ent_SeqOfLongestAnt, ent_SeqOfLongestPos;</param>
+        /// <param name="lineContainingStartAndEndTag">current line of the StreamReader from the JMdict_e.txt file</param>
+        /// <param name="startTag">opening xml tag of the current line</param>
+        /// <param name="endTag">closing xml tag of the current line</param>
+        private static void FindLongestCharCount(ref int maxCountVariable, /*ref int rowNumberWhereMaxCountCurrentTag ,*/ ref string maxCountTagEntryVar, string lineContainingStartAndEndTag, string startTag, string endTag)
+        {
+            tempWithoutTagString = RemoveTag(startTag, endTag, lineContainingStartAndEndTag);
+            tempCountLetters = CountLetters(tempWithoutTagString);
+            if (tempCountLetters > maxCountVariable) //Result of method
+            {
+                maxCountVariable = tempCountLetters; //Result of method
+                maxCountTagEntryVar = tempCurrentEnt_seq; //Result of method
+            }
+        }
+
+        private static void CountDetails()
+        {
+            string tempCurrentLine = "";
+
+            if (File.Exists(decompressedDownloadFile))
+            {
+                StreamReader sr = new StreamReader(decompressedDownloadFile);
+                while (!sr.EndOfStream) //read the whole file
+                {
+                    currentRowNumber++; //Result of Method
+
+                    tempCurrentLine = sr.ReadLine();
+
+                    //Content of first and last line
+                    if (currentRowNumber == 1)
+                    {
+                        firstLineContent = tempCurrentLine; //Result of Method; stores content of first read line
+                    }
+                    lastLineReadContent = tempCurrentLine; //Result of Method; stores content of last row that was read; changes constantly until the end of the file is reached.
+                    //date of creation
+                    if (tempCurrentLine.Contains("JMdict created:"))
+                    {
+                        jmdictCreated = tempCurrentLine;
+                    }
+
+                    //Rownumber where Dictionary starts (explanation: JMdict_e begins with declarations, later the dictionary entries follow)
+                    if (tempCurrentLine.Contains("<JMdict>"))
+                    {
+                        readerInDictionaryAerea = true; //start of counting for 'amount of' statistics
+                        rowNumberJMdictStart = currentRowNumber; //Result of Method: stores number of JMdict starting tag, just for curiosity
+                    }
+
+
+
+                    if (readerInDictionaryAerea) //now start counting the entries and its contents
+                    {
+                        if (tempCurrentLine.Contains("<entry>"))
+                        {
+                            amountOfEntries++;
+
+                        }
+                        if (tempCurrentLine.Contains(tagsEnt_seq[0]))
+                        {
+                            tempCurrentEnt_seq = RemoveTag(tagsEnt_seq[0], tagsEnt_seq[1], tempCurrentLine);
+                        }
+
+                        if (tempCurrentLine.Contains("<k_ele>"))
+                        {
+                            amountOfK_ele++;
+                        }
+                        if (tempCurrentLine.Contains("<keb>"))
+                        {
+                            amountOfKebs++;
+                            FindLongestCharCount(ref lengthOflongestKeb, ref ent_SeqOfLongestKeb, tempCurrentLine, tagsKeb[0], tagsKeb[1]);
+                        }
+                        if (tempCurrentLine.Contains("<r_ele>"))
+                        {
+                            amountOfR_ele++;
+                        }
+                        if (tempCurrentLine.Contains("<reb>"))
+                        {
+                            amountOfRebs++;
+                            FindLongestCharCount(ref lengthOflongestReb, ref ent_SeqOfLongestReb, tempCurrentLine, tagsReb[0], tagsReb[1]);
+                        }
+                        if (tempCurrentLine.Contains("<re_restr>"))
+                        {
+                            amountOfRe_restr++;
+                        }
+                        if (tempCurrentLine.Contains("<re_nokanji/>"))
+                        {
+                            amountOfRe_nokanji++;
+                        }
+                        if (tempCurrentLine.Contains("<sense>"))
+                        {
+                            amountOfSense++;
+                        }
+                        if (tempCurrentLine.Contains("<stagr>"))
+                        {
+                            amountOfStagr++;
+                        }
+                        if (tempCurrentLine.Contains("<stagk>"))
+                        {
+                            amountOfStagk++;
+                        }
+                        if (tempCurrentLine.Contains("<gloss>"))
+                        {
+                            amountOfGloss++;
+                            FindLongestCharCount(ref lengthOflongestGloss, ref ent_SeqOfLongestGloss, tempCurrentLine, tagsGloss[0], tagsGloss[1]);
+                        }
+                        if (tempCurrentLine.Contains("<ant>"))
+                        {
+                            amountOfAnt++;
+                            FindLongestCharCount(ref lengthOflongestAnt, ref ent_SeqOfLongestAnt, tempCurrentLine, tagsAnt[0], tagsAnt[1]);
+                        }
+                        if (tempCurrentLine.Contains("<pos>"))
+                        {
+                            amountOfPos++;
+                            FindLongestCharCount(ref lengthOflongestPos, ref ent_SeqOfLongestPos, tempCurrentLine, tagsPos[0], tagsPos[1]);
+                        }
+                    }                   
+                }
+                sr.Close();
+            }
+        } //End Count Details
+
+        private static string MakeDetailsReportString() {
+            CultureInfo ci = new CultureInfo("de-de");
+            StringBuilder s = new StringBuilder();
+            s.AppendLine("");
+            s.AppendLine("***FILE STATISTICS of the last downloaded version of JMdict_e***");
+            s.AppendLine("");
+            s.AppendLine("Author of the File Statistics: " + reportAuthor);
+            s.AppendLine("");
+            s.AppendLine("***About file JMdict_e.gz***");
+            s.AppendLine("Version of the download file: " + jmdictCreated.ToString());
+            s.AppendLine("");
+            s.AppendLine("JMdict_e.gz is a compressed file and contains Japanese-English vocabulary information.");
+            s.AppendLine("Owners: Electronic Dictionary Research and Development Group. " + fileownerURI);
+            s.AppendLine("Licence: Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0). " + licenceURI);
+            s.AppendLine("The JMdict_e.gz file is updated daily by its owners. ");
+            s.AppendLine("Download URI: " + fileDownloadURI + compressedDownloadFile);
+            s.AppendLine("Some explanation is given at the end of this report.");
+            s.AppendLine("");
+            s.AppendLine("***About the decompressed current download file***");
+            s.AppendLine("Rows:                          \t\t" + currentRowNumber.ToString("N00", ci));
+            s.AppendLine("Content of first line:         \t\t" + firstLineContent);
+            s.AppendLine("File reading finished:         \t\t" + JMdictReadingFinished.ToString());
+            s.AppendLine("");
+            s.AppendLine("***Amount of ...***");
+            s.AppendLine("Amount of entries:             \t\t" + amountOfEntries.ToString("N00", ci));
+            s.AppendLine("Amount of k_ele:               \t\t" + amountOfK_ele.ToString("N00", ci));
+            s.AppendLine("Amount of keb:                 \t\t" + amountOfKebs.ToString("N00", ci));
+            s.AppendLine("Amount of r_ele:               \t\t" + amountOfR_ele.ToString("N00", ci));
+            s.AppendLine("Amount of reb:                 \t\t" + amountOfRebs.ToString("N00", ci));
+            s.AppendLine("Amount of re_restr:            \t\t" + amountOfRe_restr.ToString("N00", ci));
+            s.AppendLine("Amount of re_nokanji:          \t\t" + amountOfRe_nokanji.ToString("N00", ci));
+            s.AppendLine("Amount of sense:               \t\t" + amountOfSense.ToString("N00", ci));
+            s.AppendLine("Amount of stagk:               \t\t" + amountOfStagk.ToString("N00", ci));
+            s.AppendLine("Amount of stagr:               \t\t" + amountOfStagr.ToString("N00", ci));
+            s.AppendLine("Amount of gloss:               \t\t" + amountOfGloss.ToString("N00", ci));
+            s.AppendLine("");
+            s.AppendLine("***Longest of its kind***");
+            s.AppendLine("Length of longest keb:         \t\t" + lengthOflongestKeb);
+            s.AppendLine("Ent_seq number of longest keb: \t\t" + ent_SeqOfLongestKeb);
+            s.AppendLine("Length of longest reb:         \t\t" + lengthOflongestReb);
+            s.AppendLine("Ent_seq number of longest reb: \t\t" + ent_SeqOfLongestReb);
+            s.AppendLine("Length of longest gloss:       \t\t" + lengthOflongestGloss);
+            s.AppendLine("Ent_seq number of longest gloss: \t" + ent_SeqOfLongestGloss);
+            s.AppendLine("Length of longest ant:         \t\t" + lengthOflongestAnt);
+            s.AppendLine("Ent_seq number of longest ant: \t\t" + ent_SeqOfLongestAnt);
+            s.AppendLine("Length of longest pos:         \t\t" + lengthOflongestPos);
+            s.AppendLine("Ent_seq number of longest pos: \t\t" + ent_SeqOfLongestPos);
+            s.AppendLine("");
+            s.AppendLine("***LEGEND: Explanation of some terms***");
+            s.AppendLine("Explanation of some terms used in JMdict_e. Complete information can be found at the beginning of the JMdict_e file.");
+            s.AppendLine("ENTRY");
+            s.AppendLine("The main parts of each entry are k_ele (Chinese letters), r_ele (syllable writing) and sense (meaning)");
+            s.AppendLine("Each entry consists at least of one r_ele and one sense.");
+            s.AppendLine("K_ELE");
+            s.AppendLine("k_ele: Contains information about the writing of the Japanese word using Chinese letters.");
+            s.AppendLine("keb: One way of writing the Japanese word in Chinese letters. Several kebs may be associated to one entry.");
+            s.AppendLine("R_ELE");
+            s.AppendLine("r_ele: Contains information about how to speak this word aloud using your voice.");
+            s.AppendLine("reb: One way of speaking, the information is given using kana syllable letters. One entry may have several rebs.");
+            s.AppendLine("(!) <re_nokanji/> is added after reb. It indicates that this writing is used instead of using Chinese letters, it is not a way of reading of the keb letters.");
+            s.AppendLine("re_restr: If the reb way of reading aloud is not valid for all the variants of writing in Chinese letters, a re_restr is placed.");
+            s.AppendLine("The re_restr contains the Chinese letters for which the actual way of reading them aloud is valid.");
+            s.AppendLine("SENSE");
+            s.AppendLine("sense: A group of Chinese letters may have several meanings. One sense describes one meaning.");
+            s.AppendLine("Several senses may be associated to one entry.");
+            s.AppendLine("pos: Contains grammar information about how to use the word within a sentence.");
+            s.AppendLine("ant: Contains the Chinese letters which describe the exact opposite of one sense meaning. ");
+            s.AppendLine("The Chinese letters that are contained in ant can be looked up in a different entry.");
+            s.AppendLine("stagk: Sometimes, a sense does not refer to all the Chinese letters that are associated to one entry.");
+            s.AppendLine("In such a case, stagk contains the Chinese letters for which the sense is valid.");
+            s.AppendLine("stagr: Sometimes, a sense does not refer to all the ways of reading the Chinese letters aloud.");
+            s.AppendLine("In such a case, stagr contains the syllables(kana) that describe the way of reading aloud for which the sense is valid.");
+            s.AppendLine("gloss: One gloss contains one translation of one sense into English words.");
+            s.AppendLine("Several glosses may be associated to one sense.");
+            s.AppendLine("");
+            s.AppendLine("***End of LEGEND***");
+            s.AppendLine("");
+            s.AppendLine("***End of FILE STATISTICS***");
+            return s.ToString();
+        }
+
+        private static void SaveReportToFilesystem(string filenamePlusExtension, string report)
+        {
+            FileStream fs = new FileStream(filenamePlusExtension, FileMode.Create);
+            //overwrites existing file of this name with new one each time it is created
+            StreamWriter file = new StreamWriter(fs);
+            file.Write(report);
+            file.Close();
+            fs.Close();
+        }
+    }
+}
+***End JMdictDownload.cs
+***END
